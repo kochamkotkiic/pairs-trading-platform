@@ -1,0 +1,13 @@
+# Example config copied from contract section 7.
+name: e1_baseline
+universe: sp500
+walk_forward:
+  start: 2012-01-01
+  end: 2025-12-31
+  formation_months: 12
+  trading_months: 6
+strategy: zscore
+strategy_params: {lookback: 60, z_entry: 2.0, z_exit: 0.5, z_stop: 3.5}
+costs: {commission: 0.0005, slippage: 0.0005}
+ml: {filter: null}
+engine: event
