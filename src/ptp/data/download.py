@@ -2,7 +2,7 @@
 
 Usage (from the repo root, with the virtual environment active):
 
-    python -m ptp.data.download                        # full S&P 500, 2010-01-01 .. today
+    python -m ptp.data.download                        # full S&P 500, 2010-01-01 .. yesterday
     python -m ptp.data.download --start 2015-01-01
     python -m ptp.data.download --tickers KO PEP XOM   # quick test with a few tickers
 
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 SP500_WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 CONTEXT_SYMBOLS = {"^VIX": "vix", "^GSPC": "spx"}
-DEFAULT_START = "2010-01-01"  # agreed data range: 2010-01-01 .. download date
+DEFAULT_START = "2010-01-01"  # agreed data range: 2010-01-01 .. day before download
 CHUNK_SIZE = 100
 
 _YF_FIELDS = {
@@ -215,7 +215,9 @@ def run(start: str, end: str, tickers: list[str] | None = None, version: str | N
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--start", default=DEFAULT_START, help="first date (YYYY-MM-DD)")
-    parser.add_argument("--end", default=pd.Timestamp.today().strftime("%Y-%m-%d"))
+    # Default end = yesterday: today's session may be unfinished or not yet final.
+    yesterday = (pd.Timestamp.today().normalize() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    parser.add_argument("--end", default=yesterday, help="last date (default: yesterday)")
     parser.add_argument("--tickers", nargs="*", help="only these tickers (default: S&P 500)")
     parser.add_argument("--version", help="version name, default v<today>")
     args = parser.parse_args(argv)
