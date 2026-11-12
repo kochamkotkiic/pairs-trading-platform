@@ -31,7 +31,7 @@ Projekt obejmuje trzy dziedziny:
 
 ## Najważniejsze założenia
 
-- **Dane:** dzienne notowania spółek z S&P 500 (źródło: yfinance), przechowywane lokalnie.
+- **Dane:** dzienne notowania spółek z S&P 500 (źródło: yfinance) **od 01.01.2010** do dnia pobrania, przechowywane lokalnie w plikach Parquet (wersjonowane, np. `v20261112`). Baza PostgreSQL przechowuje wyniki symulacji, nie ceny.
 - **Brak podglądania przyszłości:** każda decyzja (wybór par, parametry, trening modelu) opiera się wyłącznie na danych z przeszłości (podejście *walk-forward*).
 - **Realistyczna symulacja:** zlecenia realizowane po cenie otwarcia następnego dnia, z uwzględnieniem prowizji i poślizgu cenowego.
 - **Modułowość:** strategie i modele ML to wymienne wtyczki implementujące wspólne interfejsy.

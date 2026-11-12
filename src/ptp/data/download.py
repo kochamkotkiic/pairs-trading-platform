@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 SP500_WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 CONTEXT_SYMBOLS = {"^VIX": "vix", "^GSPC": "spx"}
-DEFAULT_START = "2010-01-01"  # open item in the report: final data range
+DEFAULT_START = "2010-01-01"  # agreed data range: 2010-01-01 .. download date
 CHUNK_SIZE = 100
 
 _YF_FIELDS = {
