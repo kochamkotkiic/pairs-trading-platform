@@ -1,0 +1,33 @@
+# Local market data (Parquet). Never commit. Leading slash = repo root only,
+# so the src/ptp/data/ package is NOT ignored.
+/data/
+
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# Tools
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# Experiment outputs / models
+/results/
+/models/
+mlruns/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
