@@ -81,6 +81,8 @@ Dodatkowo:
 
 Wersja danych (`v20261120`) jest zapisywana w każdej symulacji, żeby wyniki były powtarzalne.
 
+**Zakres dat:** dane dzienne od **01.01.2010** do dnia poprzedzającego pobranie (bieżąca sesja może być niezakończona). Aktualna wersja zespołu: `v20261112` = 04.01.2010 – 11.11.2026. Symulacje (`walk_forward.start`) powinny zaczynać się na tyle późno, żeby pierwsze okno formowania mieściło się w danych (np. start 2012-01-01 przy `formation_months: 12`).
+
 ### 2.2 Interfejs
 
 ```python
@@ -620,3 +622,4 @@ def test_signals_do_not_look_ahead(sample_prices, pairs, strategy, params):
 | Wersja | Data | Autor | Zmiana |
 |---|---|---|---|
 | 0.1 | 12.11.2026 | O3 | Pierwsza wersja do przeglądu przez zespół |
+| 0.1 | 12.11.2026 | O3 | §2.1: ustalony zakres danych od 01.01.2010 do dnia przed pobraniem; wersja `v20261112` (zmiana niełamiąca) |
