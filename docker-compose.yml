@@ -1,0 +1,30 @@
+# Local stack. Start:  docker compose up -d     Stop:  docker compose down
+# Settings come from .env (copy .env.example to .env first); defaults below are used otherwise.
+#
+# Services so far: PostgreSQL only. The API and the Streamlit frontend are added in F1.
+
+name: ptp
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ptp-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ptp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-ptp}
+    ports:
+      # host:container. Change the left number in .env if 5432 is taken on your machine.
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Named volume: data survives `docker compose down` (use `down -v` to wipe it).
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
