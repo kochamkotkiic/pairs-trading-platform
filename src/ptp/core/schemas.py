@@ -57,7 +57,8 @@ TRADE_COLUMNS: tuple[str, ...] = (
     "ml_proba",
 )
 EXIT_REASONS: frozenset[str] = frozenset(
-    {"mean_revert", "stop_loss", "time_limit", "end_of_window"}
+    # "reversal": target flipped directly from +1 to -1 (or back); added 12.11.2026
+    {"mean_revert", "stop_loss", "time_limit", "end_of_window", "reversal"}
 )
 
 # Section 10.1: equity curve

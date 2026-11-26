@@ -455,7 +455,7 @@ class BacktestResult:
 | `costs` | float | Prowizje + poślizg + koszt pożyczki (USD, ≥ 0) |
 | `pnl` | float | `gross_pnl - costs` |
 | `ret` | float | `pnl / notional przy wejściu` |
-| `exit_reason` | str | `mean_revert`, `stop_loss`, `time_limit`, `end_of_window` |
+| `exit_reason` | str | `mean_revert`, `stop_loss`, `time_limit`, `end_of_window`, `reversal` (bezpośrednia zmiana `target` z `±1` na `∓1`) |
 | `window_id` | int | Numer okna walk-forward |
 | `ml_proba` | float \| null | Wynik filtra (null dla baseline) |
 
@@ -623,3 +623,4 @@ def test_signals_do_not_look_ahead(sample_prices, pairs, strategy, params):
 |---|---|---|---|
 | 0.1 | 12.11.2026 | O3 | Pierwsza wersja do przeglądu przez zespół |
 | 0.1 | 12.11.2026 | O3 | §2.1: ustalony zakres danych od 01.01.2010 do dnia przed pobraniem; wersja `v20261112` (zmiana niełamiąca) |
+| 0.1 | 12.11.2026 | O3 | §9: nowa wartość `exit_reason = "reversal"` dla bezpośredniego odwrócenia pozycji (zmiana niełamiąca, do akceptacji) |
