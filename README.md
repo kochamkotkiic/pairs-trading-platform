@@ -27,11 +27,11 @@ Projekt obejmuje trzy dziedziny:
 |---|---|
 | **Algorytmika i analiza danych** | selekcja par, kointegracja, generowanie sygnałów, zarządzanie ryzykiem, metryki |
 | **Sztuczna inteligencja** | inżynieria cech, etykietowanie, trening i walidacja modeli, analiza wpływu ML |
-| **Inżynieria oprogramowania** | architektura, baza danych, silnik backtestingu, API, frontend, testy, wdrożenie |
+| **Inżynieria oprogramowania** | architektura, przechowywanie wyników, silnik backtestingu, API, frontend, testy, wdrożenie |
 
 ## Najważniejsze założenia
 
-- **Dane:** dzienne notowania spółek z S&P 500 (źródło: yfinance) **od 01.01.2010** do ostatniej zakończonej sesji przed dniem pobrania, przechowywane lokalnie w plikach Parquet (wersjonowane). Aktualna wersja zespołu: **`v20261112`** (04.01.2010 – 11.11.2026, 503 spółki). Baza PostgreSQL przechowuje wyniki symulacji, nie ceny.
+- **Dane:** dzienne notowania spółek z S&P 500 (źródło: yfinance) **od 01.01.2010** do ostatniej zakończonej sesji przed dniem pobrania, przechowywane lokalnie w plikach Parquet (wersjonowane). Aktualna wersja zespołu: **`v20261112`** (04.01.2010 – 11.11.2026, 503 spółki). Sposób przechowywania wyników symulacji jest [kwestią otwartą](docs/open-questions.md) (OQ-1).
 - **Brak podglądania przyszłości:** każda decyzja (wybór par, parametry, trening modelu) opiera się wyłącznie na danych z przeszłości (podejście *walk-forward*).
 - **Realistyczna symulacja:** zlecenia realizowane po cenie otwarcia następnego dnia, z uwzględnieniem prowizji i poślizgu cenowego.
 - **Modułowość:** strategie i modele ML to wymienne wtyczki implementujące wspólne interfejsy.
@@ -40,10 +40,12 @@ Projekt obejmuje trzy dziedziny:
 ## Architektura (w skrócie)
 
 ```
-Dane (Parquet) → Selekcja par → Strategia (sygnały) → Filtr ML → Backtester → Baza danych
+Dane (Parquet) → Selekcja par → Strategia (sygnały) → Filtr ML → Backtester → Wyniki*
                                                                                    ↓
                                     Frontend (Streamlit)  ←──────  API (FastAPI)  ←┘
 ```
+
+\* Sposób przechowywania wyników: kwestia otwarta OQ-1 ([`docs/open-questions.md`](docs/open-questions.md)).
 
 Szczegóły: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), interfejsy: [`docs/CONTRACTS.md`](docs/CONTRACTS.md).
 
@@ -56,7 +58,7 @@ Szczegóły: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), interfejsy: [`docs/
 | Statystyka | statsmodels, scipy |
 | Uczenie maszynowe | scikit-learn, XGBoost, Optuna, SHAP |
 | Backend / API | FastAPI, Pydantic |
-| Baza danych | PostgreSQL, SQLAlchemy, Alembic |
+| Przechowywanie wyników | do ustalenia ([OQ-1](docs/open-questions.md)) |
 | Frontend | Streamlit, Plotly |
 | Testy i jakość | pytest, ruff, GitHub Actions |
 | Uruchamianie | Docker, Docker Compose |
@@ -68,7 +70,7 @@ Szczegóły: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), interfejsy: [`docs/
 |---|---|---|
 | Osoba 1 | Strategia i analiza danych | selekcja par, kointegracja, sygnały, ryzyko, metryki |
 | Osoba 2 | Uczenie maszynowe | cechy, etykietowanie, modele, walidacja czasowa, analiza wpływu ML |
-| Osoba 3 | Inżynieria oprogramowania | architektura, baza, backtester, API, frontend, testy, wdrożenie |
+| Osoba 3 | Inżynieria oprogramowania | architektura, przechowywanie wyników, backtester, API, frontend, testy, wdrożenie |
 
 
 ## Zasady pracy
@@ -76,6 +78,7 @@ Szczegóły: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), interfejsy: [`docs/
 - Gałąź `main` jest zawsze działająca; nowe funkcje powstają na osobnych gałęziach (`feat/...`) i trafiają do `main` przez Pull Request.
 - Każdy PR musi przejść CI (testy + linter) i zostać przejrzany przez co najmniej jedną osobę.
 - Notebooki służą tylko do eksploracji; kod używany przez platformę trafia do `src/`.
+- Decyzje, których jeszcze nie podjęliśmy, zapisujemy w [`docs/open-questions.md`](docs/open-questions.md).
 
 ## Status
 

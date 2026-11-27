@@ -46,7 +46,7 @@ def test_yaml_round_trip(tmp_path: Path) -> None:
 
 
 def test_json_round_trip() -> None:
-    # The API and the DB (JSONB column) store configs as JSON.
+    # The API and the stored results keep configs as JSON.
     cfg = _config()
     assert BacktestConfig.model_validate_json(cfg.model_dump_json()) == cfg
 

@@ -23,7 +23,7 @@ Ten dokument określa, **jak moduły rozmawiają ze sobą**: jakie funkcje i kla
 10. [Krzywa kapitału i metryki](#10-krzywa-kapitału-i-metryki)
 11. [Rejestr wtyczek](#11-rejestr-wtyczek)
 12. [API](#12-api)
-13. [Baza danych](#13-baza-danych)
+13. [Przechowywanie wyników](#13-przechowywanie-wyników)
 14. [Zasady przeciw wyciekowi danych](#14-zasady-przeciw-wyciekowi-danych)
 15. [Mapa: kto implementuje, kto używa](#15-mapa-kto-implementuje-kto-używa)
 16. [Historia zmian](#16-historia-zmian)
@@ -337,7 +337,7 @@ class RiskParams(BaseModel):
 
 **Moduł:** `ptp.core.config` · **Właściciel:** O3
 
-Jeden obiekt opisuje całą symulację. Ten sam schemat jest używany przez API, frontend, pliki eksperymentów (`experiments/*.yaml`) i bazę (kolumna JSON).
+Jeden obiekt opisuje całą symulację. Ten sam schemat jest używany przez API, frontend, pliki eksperymentów (`experiments/*.yaml`) i zapisane wyniki symulacji (konfiguracja zapisywana jako JSON).
 
 ```python
 class WalkForwardConfig(BaseModel):
@@ -432,7 +432,7 @@ class BacktestResult:
 
 ## 9. Schemat dziennika transakcji (trade log)
 
-**Najważniejszy kontrakt w projekcie:** łączy strategię (O1), ML (O2), backtester, bazę i frontend (O3).
+**Najważniejszy kontrakt w projekcie:** łączy strategię (O1), ML (O2), backtester, zapis wyników i frontend (O3).
 
 | Kolumna | Typ | Opis |
 |---|---|---|
@@ -484,7 +484,7 @@ def compute_metrics(equity: pd.DataFrame, trades: pd.DataFrame,
                     periods_per_year: int = 252) -> dict[str, float]: ...
 ```
 
-Stałe klucze (frontend i baza na nich polegają):
+Stałe klucze (frontend i zapis wyników na nich polegają):
 
 | Klucz | Opis |
 |---|---|
@@ -554,20 +554,22 @@ Dodanie nowej strategii lub modelu = nowa klasa z dekoratorem `@register` + impo
 
 ---
 
-## 13. Baza danych
+## 13. Przechowywanie wyników
 
-**Moduł:** `ptp.db` · **Właściciel:** O3 · PostgreSQL, migracje przez Alembic
+**Moduł:** `ptp.db` · **Właściciel:** O3 · **Technologia: kwestia otwarta** (`docs/open-questions.md`, OQ-1)
 
-| Tabela | Kluczowe kolumny |
+Niezależnie od wybranej technologii przechowujemy:
+
+| Zbiór | Zawartość |
 |---|---|
-| `backtest_runs` | `id` PK, `name`, `created_at`, `status`, `progress`, `config` JSONB, `data_version`, `duration_s`, `error` |
-| `trades` | `id` PK, `run_id` FK, kolumny z §9 |
-| `equity_curve` | `run_id` FK, `date`, kolumny z §10.1, PK (`run_id`, `date`) |
-| `metrics` | `run_id` FK, `name`, `value`, PK (`run_id`, `name`) |
-| `pairs` | `id` PK, `run_id` FK, `window_id`, kolumny z §3.1 |
-| `signals` | `run_id` FK, `date`, `pair_id`, kolumny z §4.3 *(opcjonalnie, może być duża)* |
+| `backtest_runs` | `run_id`, `name`, `created_at`, `status`, `progress`, `config` (JSON), `data_version`, `duration_s`, `error` |
+| `trades` | `run_id` + kolumny z §9 |
+| `equity_curve` | `run_id` + kolumny z §10.1 (jeden wiersz na dzień) |
+| `metrics` | `run_id`, `name`, `value` |
+| `pairs` | `run_id`, `window_id` + kolumny z §3.1 |
+| `signals` | `run_id` + kolumny z §4.3 *(opcjonalnie, może być duża)* |
 
-Moduły O1 i O2 **nie** używają bazy bezpośrednio: dostają i zwracają DataFrame'y. Zapisem zajmuje się warstwa `ptp.db.repository` (O3).
+Moduły O1 i O2 **nie** zapisują wyników bezpośrednio: dostają i zwracają DataFrame'y. Zapisem zajmuje się warstwa `ptp.db.repository` (O3), więc wybór technologii nie wpływa na ich kod.
 
 ---
 
@@ -611,9 +613,9 @@ def test_signals_do_not_look_ahead(sample_prices, pairs, strategy, params):
 | `compute_metrics` | O1 | backtester, API, frontend |
 | `BacktestConfig` | O3 | wszyscy |
 | `Backtester`, `BacktestResult` | O3 | API, skrypty eksperymentów (O1, O2) |
-| Trade log (§9) | O3 (backtester), O1 (wersja wczesna) | O2, baza, frontend |
+| Trade log (§9) | O3 (backtester), O1 (wersja wczesna) | O2, zapis wyników, frontend |
 | Rejestr wtyczek | O3 | wszyscy |
-| API, baza | O3 | frontend |
+| API, zapis wyników | O3 | frontend |
 
 ---
 
@@ -624,3 +626,4 @@ def test_signals_do_not_look_ahead(sample_prices, pairs, strategy, params):
 | 0.1 | 12.11.2026 | O3 | Pierwsza wersja do przeglądu przez zespół |
 | 0.1 | 12.11.2026 | O3 | §2.1: ustalony zakres danych od 01.01.2010 do dnia przed pobraniem; wersja `v20261112` (zmiana niełamiąca) |
 | 0.1 | 12.11.2026 | O3 | §9: nowa wartość `exit_reason = "reversal"` dla bezpośredniego odwrócenia pozycji (zmiana niełamiąca, do akceptacji) |
+| 0.1 | 27.11.2026 | O3 | §13: technologia przechowywania wyników (wcześniej PostgreSQL) przeniesiona do kwestii otwartych (OQ-1); zakres przechowywanych danych bez zmian (zmiana niełamiąca) |
