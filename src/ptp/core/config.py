@@ -1,7 +1,7 @@
 """Simulation configuration (contract section 7).
 
 One ``BacktestConfig`` describes a whole simulation. The same schema is used by
-the API, the frontend, ``experiments/*.yaml`` and the database (JSONB column).
+the API, the frontend, ``experiments/*.yaml`` and the stored results (as JSON).
 """
 
 from __future__ import annotations

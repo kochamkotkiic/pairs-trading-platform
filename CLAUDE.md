@@ -15,14 +15,14 @@ Main research question: **does ML improve classical pairs trading?** A negative 
 - Mentor requirements (non-negotiable, do not drop any of them):
   - The project must cover **three domains**: software engineering, AI, and algorithmics/data analysis.
   - The platform must let the user: (1) choose the instruments to analyse, (2) automatically find statistically related pairs, (3) choose a base strategy and an ML model, (4) configure trading and risk parameters, (5) run a simulation on historical data, (6) view results, charts and trade history.
-  - O3 scope from the mentor: backend, architecture, database, **own backtesting engine / exchange simulator ("najlepiej samodzielnie")**, API, frontend, automated tests, deployment.
+  - O3 scope from the mentor: backend, architecture, database/result storage (technology now an open question, OQ-1), **own backtesting engine / exchange simulator ("najlepiej samodzielnie")**, API, frontend, automated tests, deployment.
 - Universe: **S&P 500 stocks**, designed so other instruments (ETFs etc.) can be added later. No deployment target exists: "deployment" = Docker Compose, one command runs everything locally.
 
 ## Team and roles
 
 - **O1 — strategy and data analysis:** pair selection (PCA/clustering, sectors, cointegration), hedge ratios, Z-score signals, strategy plugins, risk/position sizing, performance metrics, statistical validation, pair charts in the UI.
 - **O2 — machine learning:** feature engineering, triple-barrier labeling, models (logistic regression baseline, Random Forest, XGBoost), purged + embargoed walk-forward CV, Optuna tuning, probability calibration, ML-impact analysis (ablations, SHAP, random-filter control), ML charts in the UI.
-- **O3 — software engineering:** architecture and contracts (`core/`), repo/CI, data loader (with O1), backtester (vectorized, then event-driven), PostgreSQL DB, FastAPI, Streamlit app skeleton, automated tests incl. leakage tests, Docker Compose.
+- **O3 — software engineering:** architecture and contracts (`core/`), repo/CI, data loader (with O1), backtester (vectorized, then event-driven), result storage (technology: OQ-1), FastAPI, Streamlit app skeleton, automated tests incl. leakage tests, Docker Compose.
 - **The user (Emilia) is O3.** Default to the O3 perspective. When touching O1/O2 modules, stick to the contracts and do not redesign their internals.
 - Dependencies: O2 needs O1's **trade log** to build training data (critical path). O1 and O2 need O3's **data loader** and a **vectorized backtester** early so they are never blocked. O3 needs O1/O2 code that matches the contracts.
 
@@ -45,7 +45,7 @@ src/ptp/
   metrics/       compute_metrics()                                              [O1]
   ml/            features, labels, SignalFilter plugins, validation             [O2]
   backtest/      vectorized.py, engine.py (event), costs.py, portfolio.py       [O3]
-  db/            SQLAlchemy models, repository, Alembic migrations              [O3]
+  db/            result storage + repository (technology: open question OQ-1)  [O3]
   api/           FastAPI app, routers, background jobs                          [O3]
 frontend/        Streamlit app (app.py, pages/)          [O3 skeleton, O1/O2 charts]
 experiments/     YAML configs (one per experiment) + scripts                    [O1+O2]
@@ -53,29 +53,29 @@ notebooks/       exploration only, never imported by src/
 tests/           unit/, integration/, leakage/
 data/            local Parquet files — gitignored, never committed
 docker/          api.Dockerfile, frontend.Dockerfile
-docker-compose.yml   postgres + api + frontend
+docker-compose.yml   api + frontend (a storage service only if OQ-1 needs one)
 pyproject.toml, .github/workflows/ci.yml, .env.example
 ```
 
 ## Stack
 
-Python 3.11 · pandas, numpy, yfinance, Parquet (pyarrow) · statsmodels, scipy · scikit-learn, XGBoost, Optuna, SHAP · experiment tracking via YAML configs + saved results (MLflow optional) · Pydantic · FastAPI + Uvicorn · PostgreSQL, SQLAlchemy, Alembic · Streamlit, Plotly · pytest, ruff, GitHub Actions · Docker / Docker Compose · GitHub Issues + Projects.
+Python 3.11 · pandas, numpy, yfinance, Parquet (pyarrow) · statsmodels, scipy · scikit-learn, XGBoost, Optuna, SHAP · experiment tracking via YAML configs + saved results (MLflow optional) · Pydantic · FastAPI + Uvicorn · result storage: open question (OQ-1) · Streamlit, Plotly · pytest, ruff, GitHub Actions · Docker / Docker Compose · GitHub Issues + Projects.
 
 Deliberately **not** used (keep it simple, it is an academic project): Celery/Redis (use FastAPI `BackgroundTasks`), React/custom JS frontend, paid data, intraday data, broker integration/live trading, multi-user auth.
 
 ## Architecture
 
 ```
-Data (Parquet) → Pair selection → Strategy (signals) → ML filter → Backtester → DB
-                                                                                  ↓
-                                    Frontend (Streamlit) ← API (FastAPI) ←────────┘
+Data (Parquet) → Pair selection → Strategy (signals) → ML filter → Backtester → Result store (OQ-1)
+                                                                                ↓
+                                    Frontend (Streamlit) ← API (FastAPI) ←──────┘
 ```
 
 - Strategies, pair selectors, ML filters, feature builders, sizers and backtesters are **plugins** behind ABCs (`PairSelector`, `Strategy`, `SignalFilter`, `FeatureBuilder`, `PositionSizer`, `Backtester`), registered with `@register(category, name)` in `ptp.core.registry` and looked up by name from `BacktestConfig`. Each plugin has a Pydantic `params_model`; the API exposes it as JSON Schema (`GET /plugins/{category}`) and the frontend auto-generates forms from it. Adding a strategy/model = new class + decorator + import, nothing else changes.
-- One `BacktestConfig` (Pydantic) describes a whole simulation and is shared by API, frontend, `experiments/*.yaml` and the DB (JSONB column).
-- **Prices live in Parquet, not in the DB.** The DB stores what the system produces: `backtest_runs` (config JSONB, status, progress, data_version, duration, error), `trades`, `equity_curve`, `metrics`, `pairs`, optional `signals`.
-- O1/O2 modules never touch the DB; they take and return DataFrames. Persistence goes through `ptp.db.repository` (O3).
-- **Streamlit talks only to the API**, never directly to the DB or to O1/O2 code. This keeps the "modular platform" real and lets the frontend be swapped.
+- One `BacktestConfig` (Pydantic) describes a whole simulation and is shared by API, frontend, `experiments/*.yaml` and the stored results (as JSON).
+- **Prices live in Parquet, separately from results.** The result store (technology: open question OQ-1; PostgreSQL is no longer assumed) keeps what the system produces: `backtest_runs` (config as JSON, status, progress, data_version, duration, error), `trades`, `equity_curve`, `metrics`, `pairs`, optional `signals`.
+- O1/O2 modules never touch the result store; they take and return DataFrames. Persistence goes through `ptp.db.repository` (O3).
+- **Streamlit talks only to the API**, never directly to the result store or to O1/O2 code. This keeps the "modular platform" real and lets the frontend be swapped.
 - Long runs: `POST /backtests` returns `run_id` (HTTP 202) and runs in the background; status `pending → running → done | failed`; the frontend polls `GET /backtests/{id}`. Other endpoints: `/health`, `/universes`, `/plugins/{category}`, `/pairs/discover`, `/backtests` (list), `/backtests/{id}/trades|equity|signals`, `/backtests/compare?ids=`, `DELETE /backtests/{id}`. Errors are `{"detail": ...}`, 422 for bad config, 404 for unknown run.
 
 ## Backtester (O3's main deliverable)
@@ -93,7 +93,7 @@ Data (Parquet) → Pair selection → Strategy (signals) → ML filter → Backt
 - Risk defaults: dollar-neutral legs, capital_per_pair 0.1 of equity, max 10 open pairs, max gross leverage 2.0.
 - ML = **meta-labeling**: the strategy decides direction, the model decides whether to take the trade (`P(success)`). Labels via triple barrier (profit / stop / time). Validation: purged + embargoed walk-forward CV. Sparse signals → pool trades across many pairs and years.
 - Clustering uses only price-derived features + static sector labels. **Never yfinance fundamentals** (not point-in-time → leakage).
-- Experiments: E1 baseline · E2 ML filter at several thresholds · E3 random-filter control · E4 ablations (feature groups, models) · E5 regimes (2020 crash, 2022 bear market) · E6 cost sensitivity · E7 bootstrap CIs on Sharpe difference. Each experiment = one YAML in `experiments/` and one run in the DB.
+- Experiments: E1 baseline · E2 ML filter at several thresholds · E3 random-filter control · E4 ablations (feature groups, models) · E5 regimes (2020 crash, 2022 bear market) · E6 cost sensitivity · E7 bootstrap CIs on Sharpe difference. Each experiment = one YAML in `experiments/` and one stored run.
 
 ## Data
 
@@ -135,18 +135,23 @@ Contracts freeze on **29.11.2026**. After that, a change needs a PR touching `do
 
 | Milestone | Date | Done when |
 |---|---|---|
-| M0 foundations | 29.11.2026 | repo + CI, contracts frozen, S&P 500 data downloaded, Docker Compose with DB |
+| M0 foundations | 29.11.2026 | repo + CI, contracts frozen, S&P 500 data downloaded, Docker Compose skeleton |
 | M1 baseline (demo for mentor) | 31.01.2027 | one config runs end to end: pairs → signals → vectorized backtest → result on screen; first trade log for O2 |
-| M2 ML integration | 28.03.2027 | model plugged into the backtest, first baseline vs ML comparison, event-driven engine, results in DB |
+| M2 ML integration | 28.03.2027 | model plugged into the backtest, first baseline vs ML comparison, event-driven engine, results stored |
 | M3 complete platform | 09.05.2027 | all 6 mentor functions available from the UI, experiments done, leakage tests pass |
 | M4 final | 31.05.2027 | report, presentation, one-command startup |
 
 Phases: F0 09.11–29.11 · F1 30.11–31.01 (winter break ~21.12–06.01) · exam session in February (dates TBD, light work only) · F2 22.02–28.03 · F3 29.03–09.05 · F4 10.05–31.05 (report, polish, buffer).
 
-**Current phase: F0 / M0.** O3 next steps: repo skeleton (`pyproject.toml`, `src/ptp/` packages, ruff/pytest config, CI workflow, `.gitignore` incl. `data/`, `.env.example`), contracts as real code in `src/ptp/core/` (ABCs, Pydantic types/config, registry), data loader + download script, `docker-compose.yml` with PostgreSQL, then the vectorized backtester and first API endpoints.
+**Current phase: F0 / M0.** O3 next steps: repo skeleton (`pyproject.toml`, `src/ptp/` packages, ruff/pytest config, CI workflow, `.gitignore` incl. `data/`, `.env.example`), contracts as real code in `src/ptp/core/` (ABCs, Pydantic types/config, registry), data loader + download script, `docker-compose.yml`, then the vectorized backtester and first API endpoints.
 
 ## Open items (do not decide silently, ask)
 
+Team-level open questions live in `docs/open-questions.md`.
+
+- **OQ-1, result storage technology.** After the meeting with the mentor (27.11.2026) PostgreSQL is no longer assumed and all its usages were removed (compose service, SQLAlchemy/Alembic/psycopg, env vars, DB connection test). Do not add any database dependency until OQ-1 is decided.
+- **OQ-2, dashboard look.** Pages, user flow, which charts and tables, who builds which chart. Do not lay out the UI beyond a minimal skeleton until agreed.
+- **OQ-3, final infrastructure.** Which services make up the platform, where the final version runs, what CI needs. Currently: local Docker Compose only; depends on OQ-1.
 - Contract file name (`docs/contract.md` vs `docs/CONTRACTS.md`) and missing `docs/ARCHITECTURE.md`.
 - Report `\todo`s: final cost values, ML thresholds, regime periods, NFR-06 performance target, team member names, meeting schedule, communication channel, exam session dates.
 - Whether the LaTeX report lives in the repo (e.g. `docs/report/`) or only on Overleaf.
